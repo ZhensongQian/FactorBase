@@ -21,43 +21,12 @@ public class BN_ScoreComputation{
 	public static void main( String[] args ) throws SQLException{
 		
 		long t1 = System.currentTimeMillis();
-		// Structure learning **** begin
-//		/* prepare the setup database store them in @database@_setup database */
-//		try	{
-//			setVarsFromConfig();
-//			if (opt1.equals("1")) {
-//				MakeSetup.runMS();
-//				System.out.println("Setup database is ready.");
-//			} else {
-//				System.out.println("Setup database exists.");
-//			}
-//		}
-//		catch ( Exception e ){
-//			System.out.println( "Failed to setup database." );
-//			e.printStackTrace();
-//			return;
-//		}
-//		long t2 = System.currentTimeMillis();
-//		System.out.println( "Setup time: " + ( t2 - t1 ) + "ms" );
-//		System.out.println( "Current runtime: " + ( t2 - t1 ) + "ms" );
-//		
-//		/*  Bayes Net Structure Learning and store them in @database@_BN database */
-//		try{
-//			RunBB.runBBLearner();
-//		}
-//		catch ( Exception e ){
-//			System.out.println( "Failed to learn Bayes Net." );
-//			e.printStackTrace();
-//			return;
-//		}
-// Structure learning **** end		
+
 		long t3 = System.currentTimeMillis();
-//		System.out.println( "BN Learning time: " + ( t3 - t2 ) + "ms" );
-//		System.out.println( "Current runtime: " + ( t3 - t1 ) + "ms" );
-//		
+
+
 		/* Compute local CT tables and store them in @database@_db database*/
-		// July 3rd, 2014, zqian, how about replace this by extract local_ct from the biggest ct since it has been computed already ???
-		
+	
 		if ( SubsetCTComputation.compute_subset_CT( ) != 0 ){ 
 			System.out.println( "Failed to get counts." );
 			return;
