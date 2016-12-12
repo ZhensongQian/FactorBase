@@ -1,9 +1,3 @@
-/* Feb 7th 2014, zqian;
-        //Make sure each node appear as a child
-        // <child,''>, <child,parent>      
- * */
-/*Change ChildValue to FID -- Feb 7 Yan
-*/
 /*
  * exporting the Bayes Net into a BIF file 
  * 1.get the structure from table  _BN.Path_BayesNets
@@ -18,10 +12,7 @@
  * For the position property, we may need to optimize it.
  * */
 
-//query for Rchain=>SELECT distinct lattice_set.name FROM lattice_membership,lattice_set where length=( SELECT max(length) FROM lattice_set);
 
-
-/*To do: Samarth, replace the short_rnid with orig_rnid*/
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -49,19 +40,9 @@ public class BIF_Generator {
 	
 	public static void main(String[] args) throws SQLException, IOException {
 		
-		//read config file
 		setVarsFromConfig();
 		connectDB();
-		
-		//mapping the orig_rnid back and create a new table: Final_Path_BayesNets.
-		//Final_Path_BayesNets(con2);
-		
-		
 		generate_bif(databaseName,"src/Bif_"+databaseName+".xml",con2);
-		
-		
-	    
-		
 		disconnectDB();
 	
 		
@@ -90,9 +71,7 @@ public class BIF_Generator {
         	orig_rnid.add(rst.getString("orig_rnid").substring(1,rst.getString("orig_rnid").length()-1));//removing apostrophe and then adding
         }
         
-       // Feb 7th 2014, zqian;
-        //Make sure each node appear as a child
-        // <child,''>, <child,parent>
+
          rst=st.executeQuery("SELECT distinct child FROM Path_BayesNets ;");
         while(rst.next()){
       	  variables.add(rst.getString(1).substring(1,rst.getString(1).length()-1));//removing apostrophe and then adding 
@@ -198,19 +177,10 @@ public class BIF_Generator {
       	    rst2.next();
       	  // System.out.println(j + ": "  + rst2.getString(1)+"\n"); //zqian
       	    probabilities=probabilities+" "+rst2.getString(1);
-      	    //KLD generator has been modified s.t. probabilities sum to 1, and have at most 6 digits are .  Oliver
-      	    //getString(1) is assigned the conditional probability (CP) as a string
-      		//subtot=subtot+Integer.parseInt((rst2.getString(1).substring(2,rst2.getString(1).length())));
-      	//	System.out.println("subtot: " + subtot);
-      		
-      		//convert string representing a conditional probability to an integer. 
+      	  
       		}
       		
-      	 /*  rst2.next();
-      		
-      		  int last=10000-subtot;
-      		  double  last1=((double)last/10000);
-      		  probabilities=probabilities+" "+last1;*/
+      	
       		  
       		  }
       	 
@@ -392,8 +362,7 @@ public class BIF_Generator {
 			System.err.println("Unable to load MySQL JDBC driver");
 		}
 		con3 = (Connection) DriverManager.getConnection(CONN_STR3, dbUsername, dbPassword);
-        //handle warnings
-       // handleWarnings();
+
 	}
 
 	
