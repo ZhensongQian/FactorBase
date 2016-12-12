@@ -1,4 +1,3 @@
-/*zqian, April 1st, 2014 fixed the bug of too many connections by adding con4.close()*/
 
 
 /*Jun 25,2013 @zqian
@@ -6,12 +5,6 @@
  * Trying to conquer the bottleneck of creating false tables (the join issue) by implementing our sort_merge algorithm.
  * Great stuff!
  * 
- * Here we have some different versions.
- * for version 3, naive implementing of sort merge with "load into" command in terms of efficiency issue of mysql insertion.
- * for version 4, concatenating the order by columns into one column when version 3 can not finish the order by .
- * 
- * for version 5, it's a kind of more complicated approach by pre-compressing all the attribute columns into one column, and then employing concatenating trick again on order by part.
- *   this version still has some bugs that need to be investagiated.
  *   
  * Preconditions: database_BN  has been created with lattice information and functor information.
  *  
@@ -35,8 +28,7 @@ import com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException;
 public class BayesBaseCT_SortMerge {
 
 	static Connection con1, con2, con3, con4;
-	//con1 for real database, con2 for _BN, con3 for _CT 
-	//  to be read from config
+
 	static String databaseName, databaseName2, databaseName3, databaseName4;
 	static String dbbase;
 	static String dbUsername;
@@ -56,20 +48,15 @@ public class BayesBaseCT_SortMerge {
 	public static void buildCT() throws Exception {
 	      
 		initProgram();
-		//connect to db using jdbc
 		connectDB();
-		//build _BN copy from _setup Nov 1st, 2013 Zqian
        BZScriptRunner bzsr = new BZScriptRunner(databaseName,con4);
        bzsr.runScript("src/scripts/transfer.sql");
        connectDB1();
      
-		//generate lattice tree
-		//maxNumberOfMembers = LatticeGenerator.generate(con2);
 		maxNumberOfMembers = short_rnid_LatticeGenerator.generate(con2);// rnid mapping. maxNumberofMembers = maximum size of lattice element. Should be called LatticeHeight
 		System.out.println(" ##### lattice is ready for use* ");
 		
-		//build _BN part2: from metadata_2.sql      
-		// empty query error,fixed by removing one duplicated semicolon. Oct 30, 2013
+
 		
 		if (cont.equals("1")) {
 			bzsr.runScript("src/scripts/metadata_2_cont.sql");
@@ -121,55 +108,43 @@ public class BayesBaseCT_SortMerge {
 		
 		return maxNumberOfMembers;
 	}
-	//Aug. 19, 2014, zqian
-    //compute the subset given fid and it's parents
 	public static int buildSubCTTarget(String functorId,String database_BN,String database_target,String database_target_bn,String database_db) throws Exception { 
 	      
 		setVarsFromConfigForTarget();
-		//connect to db using jdbc
 		connectDB();
-		//build _BN part1 from metadata_1.sql
 		BZScriptRunner bzsr = new BZScriptRunner(databaseName,dbbase,con4);
 		bzsr.runScript("src/scripts/transfer2.sql");
 		connectDB1();
-		//generate lattice tree
 		maxNumberOfMembers = short_rnid_LatticeGenerator.generateTarget(con2);// rnid mapping. maxNumberofMembers = maximum size of lattice element. Should be called LatticeHeight
 		System.out.println(" ##### lattice is ready for use* ");
 		
-		//build _BN part2: from metadata_2.sql      
 		if (cont.equals("1")) {
 			bzsr.runScript("src/scripts/metadata_3_cont.sql");
-		} else if (opt2.equals("1")) { //LinkCorrelations 
+		} else if (opt2.equals("1")) { 
 			bzsr.runScript("src/scripts/metadata_3.sql");
 		} else {
 			bzsr.runScript("src/scripts/metadata_3_nolink.sql");
-			// modified on Feb. 3rd, 2015, zqian, to include rnode as columns
+			
 		}
 		
         // building CT tables for Rchain
-       // CTGenerator();
-        //compute the subset given fid and it's markov blanket
+
         SubsetCTComputation.computeTargetSubset_CTs(functorId,database_BN,database_target,database_target_bn,database_db); //unielwin_training1_target_db
         
 		disconnectDB();
 		
 		return maxNumberOfMembers;
 	}
-	//compute the subset given fid and it's child with child's parents
 	public static int buildSubCTTarget(String functorId,String database_BN,String database_target,String database_target_bn,String database_db,String child,String child1) throws Exception { 
 	      
 		setVarsFromConfigForTarget();
-		//connect to db using jdbc
 		connectDB();
-		//build _BN part1 from metadata_1.sql
 		BZScriptRunner bzsr = new BZScriptRunner(databaseName,dbbase,con4);
 		bzsr.runScript("src/scripts/transfer2.sql");
 		connectDB1();
-		//generate lattice tree
 		maxNumberOfMembers = short_rnid_LatticeGenerator.generateTarget(con2);// rnid mapping. maxNumberofMembers = maximum size of lattice element. Should be called LatticeHeight
 		System.out.println(" ##### lattice is ready for use* ");
 		
-		//build _BN part2: from metadata_2.sql      
 		if (cont.equals("1")) {
 			bzsr.runScript("src/scripts/metadata_3_cont.sql");
 		} else if (opt2.equals("1")) { //LinkCorrelations 
@@ -177,13 +152,10 @@ public class BayesBaseCT_SortMerge {
 		} else {
 			bzsr.runScript("src/scripts/metadata_3_nolink.sql");
 
-			// modified on Feb. 3rd, 2015, zqian, to include rnode as columns
 
 		}
 		
-        // building CT tables for Rchain
-       // CTGenerator();
-        //compute the subset given fid and it's markov blanket
+ 
         SubsetCTComputation.computeTargetSubset_CTs(functorId,database_BN,database_target,database_target_bn,database_db,child,child1); //unielwin_training1_target_db
         
 		disconnectDB();
@@ -192,76 +164,40 @@ public class BayesBaseCT_SortMerge {
 	}
 	
 	
-	/** 
-	 * //building the _CT tables for length >=2
-	 * for(int len = 2; len <= 2; len++){
-		
-		
-		//1. find rchain, find list of members of rchain. Suppose first member is rnid1.
-		//2. initialize current_ct = rchain_counts after summing out the relational attributes of rnid1.
-		//3. Current list = all members of rchain minus rndi1. find ct(table) for current list = . Select rows where all members of current list are true. Add 1nodes of rnid1.
-		//4. Compute false table using the results of 2 and 3 (basically 2 - 3).
-		//5. Union false table with current_ct to get new ct where all members of current list are true.
-		//6. Repeat with current list as initial list until list is empty.
-		
-		//Example: 
-		//1. Rchain = R3,R2,R1. first rnid1 = R3. 
-		//2. Find `R3,R2,R1_counts`. Sum out fields from R3 to get `R2,R1-R3_flat1`.
-		//3. Current list = R2,R1. Find `R2,R1_ct` where R1 = T, R2 = T. Add 1nodes of R3 (multiplying) to get `R2,R1-R3_star`.
-		//4. Compute `R2,R1-R3_false` = `R2,R1-R3_star - `R2,R1-R3_flat1` union (as before)
-		//5. Compute `R2,R1-R3_ct` = `R2,R1-R3_false` cross product `R3_join` union `R3,R2,R1_counts`.
-		//6. Current list = R1. Current rnid = R2. Current ct_table = `R2,R1-R3_ct`.
 	
-		BuildCT_Rnodes_flat(len);
-		
-		BuildCT_Rnodes_star(len);
-		
-		BuildCT_Rnodes_CT(len);
-	}
-	 * 
-	 */
 	public static void CTGenerator() throws Exception{
 		
-		long l = System.currentTimeMillis(); //@zqian : CT table generating time
-		   // handling Pvars, generating pvars_counts		
-        BuildCT_Pvars();
+		long l = System.currentTimeMillis(); 		
+       		 BuildCT_Pvars();
         
-        // preparing the _join part for _CT tables
 		BuildCT_Rnodes_join();
 		
-		//building the RNodes_counts tables. should be called Rchains since it goes up the lattice.
 		if(opt2.equals("1")) {
-			long l_1 = System.currentTimeMillis(); //@zqian : measure structure learning time
+			long l_1 = System.currentTimeMillis(); 
 			for(int len = 1; len <= maxNumberOfMembers; len++)			{	
 				BuildCT_Rnodes_counts(len);
 			}
-			long l2 = System.currentTimeMillis(); //@zqian : measure structure learning time
+			long l2 = System.currentTimeMillis(); 
 			System.out.print("Building Time(ms) for Rnodes_counts: "+(l2-l_1)+" ms.\n");
 		}
 		else {
 			System.out.println("link off !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 			for(int len = 1; len <= maxNumberOfMembers; len++)
 				BuildCT_Rnodes_counts2(len);
-			//count2 simply copies the counts to the CT tables
 			
 		}
 
 		if (opt2.equals("1")) {
-			// handling Rnodes with Lattice Moebius Transform        
-			for(int len = 1; len <= 1; len++) //initialize first level of rchain lattice
+			for(int len = 1; len <= 1; len++) 
 			{
 				System.out.print("Building Time(ms) for Rchain =1 \n");
-				//building the _flat tables
 				BuildCT_Rnodes_flat(len);
 		
-				//building the _star tables
 				BuildCT_Rnodes_star(len);
 
-				//building the _false tables first and then the _CT tables
 				BuildCT_Rnodes_CT(len);
 			}
 			
-			//building the _CT tables. Going up the Rchain lattice
 			for(int len = 2; len <= maxNumberOfMembers; len++)
 			{ 
 				System.out.println("now we're here for Rchain!");
@@ -272,7 +208,6 @@ public class BayesBaseCT_SortMerge {
 		}
 		
 
-		//delete the tuples with MULT=0 in the biggest CT table
 		String BiggestRchain="";
 		Statement st = con2.createStatement();
 		ResultSet rs = st.executeQuery("select name as RChain from lattice_set where lattice_set.length = (SELECT max(length)  FROM lattice_set);" );
@@ -294,27 +229,17 @@ public class BayesBaseCT_SortMerge {
 			try
 			{
 				
-				/*System.out.print("create table `"+BiggestRchain.replace("`", "") +"_CT1` as select *, (select 'T') as `a`, (select 'T') as `b`, (select 'T') as `c`"
-						+ " FROM `"+BiggestRchain.replace("`", "") +"_CT`;" );
-				*/
 				st1.execute("delete from `"+BiggestRchain.replace("`", "") +"_CT` where MULT='0';" );
-				// test May 12
-				/*st1.execute("create table `"+BiggestRchain.replace("`", "") +"_CT1` as select *, (select 'T') as `a`, (select 'T') as `b`, (select 'T') as `c`"
-						+ " FROM `"+BiggestRchain.replace("`", "") +"_CT`;" );
-				st1.execute("drop table `"+BiggestRchain.replace("`", "") +"_CT` ; ");
-				st1.execute( "create table `"+BiggestRchain.replace("`", "") +"_CT` as select * FROM `"+BiggestRchain.replace("`", "") +"_CT1`; ");
-				*/
-				//
+				
 			}
 			catch ( MySQLSyntaxErrorException e )
 			{
-				//Do nothing
+				
 			}
 			st1.close();
 		}
 		
-		long l2 = System.currentTimeMillis();  //@zqian 
-//		System.out.print("Building CT Time(ms): "+(l2-l)+" ms.\n");
+		long l2 = System.currentTimeMillis(); 
 		System.out.print("Building Time(ms) for ALL CT tables:  "+(l2-l)+" ms.\n");
 
 	
